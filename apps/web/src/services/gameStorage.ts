@@ -1,4 +1,4 @@
-import { PuzzleGrid, Direction } from 'shared-types';
+import { PuzzleGrid, Direction, DifficultyLevel } from 'shared-types';
 
 export const STORAGE_KEY = 'crossword_mind_active_game_v1';
 
@@ -7,6 +7,7 @@ export interface SavedGameState {
   puzzle: PuzzleGrid;
   theme: string;
   currentPuzzleTheme: string;
+  difficulty: DifficultyLevel;
   wordCount: number;
   userLetters: Record<string, string>;
   revealedWordIds: string[];
@@ -51,6 +52,7 @@ export function loadActiveGame(): SavedGameState | null {
       puzzle: data.puzzle,
       theme: data.theme ?? 'todos',
       currentPuzzleTheme: data.currentPuzzleTheme ?? 'todos',
+      difficulty: (data.difficulty as DifficultyLevel) || 'medio',
       wordCount: data.wordCount ?? 8,
       userLetters: data.userLetters && typeof data.userLetters === 'object' ? data.userLetters : {},
       revealedWordIds: Array.isArray(data.revealedWordIds) ? data.revealedWordIds : [],

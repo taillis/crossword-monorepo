@@ -61,4 +61,24 @@ describe('CrosswordEngine (Backtracking)', () => {
       }
     }
   });
+
+  it('deve calcular métricas de dificuldade (BoardDifficultyMetrics) e atribuir nível ao grid', () => {
+    const words: WordNode[] = [
+      { word: 'CASA', clue: 'Moradia' },
+      { word: 'SOL', clue: 'Astro rei' },
+      { word: 'LUA', clue: 'Satélite' },
+    ];
+
+    const result = engine.generate(words, 25, 'facil');
+
+    expect(result.difficulty).toBe('facil');
+    expect(result.metrics).toBeDefined();
+    if (result.metrics) {
+      expect(result.metrics.score).toBeGreaterThanOrEqual(1);
+      expect(result.metrics.score).toBeLessThanOrEqual(100);
+      expect(result.metrics.totalWords).toBe(result.placedWords.length);
+      expect(result.metrics.interlockingRatio).toBeGreaterThanOrEqual(0);
+      expect(result.metrics.averageWordLength).toBeGreaterThan(0);
+    }
+  });
 });

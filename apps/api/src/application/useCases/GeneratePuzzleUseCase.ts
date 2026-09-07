@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { ICrosswordEngine, IPuzzleRepository, IWordProvider } from '../../domain/interfaces';
-import { PuzzleGrid } from 'shared-types';
+import { PuzzleGrid, DifficultyLevel } from 'shared-types';
 
 export class GeneratePuzzleUseCase {
   constructor(
@@ -11,13 +11,14 @@ export class GeneratePuzzleUseCase {
 
   async execute(
     theme: string = 'tecnologia',
-    wordCount: number = 8
+    wordCount: number = 8,
+    difficulty?: DifficultyLevel
   ): Promise<{ id: string; grid: PuzzleGrid }> {
-    // 1. Busca palavras temáticas do provedor
-    const words = await this.wordProvider.fetchThematicWords(theme, wordCount);
+    // 1. Busca palavras temáticas do provedor com base na dificuldade
+    const words = await this.wordProvider.fetchThematicWords(theme, wordCount, difficulty);
 
     // 2. Executa o algoritmo de backtracking para compor o grid
-    const grid = this.crosswordEngine.generate(words);
+    const grid = this.crosswordEngine.generate(words, undefined, difficulty);
 
     // 3. Persiste no repositório
     const puzzleId = randomUUID();

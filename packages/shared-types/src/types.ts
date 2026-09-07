@@ -10,9 +10,23 @@ export interface WordPlacement {
   length: number;
 }
 
+export type DifficultyLevel = 'facil' | 'medio' | 'dificil';
+
+export interface BoardDifficultyMetrics {
+  score: number; // 0 a 100
+  level: DifficultyLevel;
+  interlockingRatio: number; // proporção de células cruzadas (0.0 a 1.0)
+  averageWordLength: number;
+  totalWords: number;
+  totalUniqueCells: number;
+  crossedCells: number;
+}
+
 export interface PuzzleGrid {
   bounds: { rows: number; cols: number };
   placedWords: WordPlacement[];
+  difficulty?: DifficultyLevel;
+  metrics?: BoardDifficultyMetrics;
 }
 
 export interface WordNode {

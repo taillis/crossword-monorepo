@@ -14,16 +14,20 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "release": "semantic-release"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/git": "^11.0.1",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^17.12.0",
     "prettier": "^3.9.6",
+    "semantic-release": "^25.0.9",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.69.0"

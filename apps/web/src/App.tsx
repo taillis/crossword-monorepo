@@ -6,6 +6,7 @@ import {
   WordPlacement,
   Direction,
   THEME_LABELS,
+  DifficultyLevel,
 } from 'shared-types';
 import {
   RefreshCw,
@@ -28,6 +29,33 @@ import { loadActiveGame, saveActiveGame } from './services/gameStorage';
 const offlineProvider = new OfflineWordProvider();
 const localEngine = new CrosswordEngine(28);
 
+const DIFFICULTY_CONFIG: Record<
+  DifficultyLevel,
+  { label: string; icon: string; defaultWords: number; desc: string; color: string }
+> = {
+  facil: {
+    label: 'Fácil',
+    icon: '🟢',
+    defaultWords: 6,
+    desc: 'Palavras curtas (3-6 letras) e alta densidade de cruzamentos',
+    color: '#10b981',
+  },
+  medio: {
+    label: 'Médio',
+    icon: '🟡',
+    defaultWords: 8,
+    desc: 'Vocabulário balanceado (5-9 letras) e cruzamentos dinâmicos',
+    color: '#f59e0b',
+  },
+  dificil: {
+    label: 'Difícil',
+    icon: '🔴',
+    defaultWords: 12,
+    desc: 'Palavras longas (7+ letras) e grade mais desafiadora',
+    color: '#ef4444',
+  },
+};
+
 export default function App() {
   const [puzzle, setPuzzle] = useState<PuzzleGrid>({
     bounds: { rows: 0, cols: 0 },
@@ -35,6 +63,7 @@ export default function App() {
   });
   const [theme, setTheme] = useState<string>('todos');
   const [currentPuzzleTheme, setCurrentPuzzleTheme] = useState<string>('todos');
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('medio');
   const [wordCount, setWordCount] = useState<number>(8);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoadedSavedGame, setHasLoadedSavedGame] = useState<boolean>(false);
@@ -62,11 +91,13 @@ export default function App() {
 
   const themeRef = useRef(theme);
   const wordCountRef = useRef(wordCount);
+  const difficultyRef = useRef(difficulty);
 
   useEffect(() => {
     themeRef.current = theme;
     wordCountRef.current = wordCount;
-  }, [theme, wordCount]);
+    difficultyRef.current = difficulty;
+  }, [theme, wordCount, difficulty]);
 
   // Monitorar largura da janela para calcular exatamente o tamanho da célula sem scroll
   const [windowWidth, setWindowWidth] = useState<number>(() =>
@@ -133,38 +164,49 @@ export default function App() {
   }, [gridData.cols, windowWidth]);
 
   // Geração 100% autônoma e offline no próprio navegador
-  const generateOfflinePuzzle = useCallback((selectedTheme?: string, count?: number) => {
-    const targetTheme = selectedTheme ?? themeRef.current;
-    const targetCount = count ?? wordCountRef.current;
+  const generateOfflinePuzzle = useCallback(
+    (selectedTheme?: string, count?: number, selectedDifficulty?: DifficultyLevel) => {
+      const targetTheme = selectedTheme ?? themeRef.current;
+      const targetDifficulty = selectedDifficulty ?? difficultyRef.current;
+      const targetCount =
+        count ?? (DIFFICULTY_CONFIG[targetDifficulty]?.defaultWords || wordCountRef.current);
 
-    setLoading(true);
-    setIsVerifying(false);
-    setUserLetters({});
-    setRevealedWords(new Set());
-    setElapsedSeconds(0);
+      setLoading(true);
+      setIsVerifying(false);
+      setUserLetters({});
+      setRevealedWords(new Set());
+      setElapsedSeconds(0);
 
-    // Executa assíncrono para garantir repaint imediato do botão com spinner
-    setTimeout(() => {
-      try {
-        const words = offlineProvider.fetchThematicWords(targetTheme, targetCount);
-        const generatedGrid = localEngine.generate(words);
-        setPuzzle(generatedGrid);
-        setCurrentPuzzleTheme(targetTheme);
+      // Executa assíncrono para garantir repaint imediato do botão com spinner
+      setTimeout(() => {
+        try {
+          const words = offlineProvider.fetchThematicWords(
+            targetTheme,
+            targetCount,
+            targetDifficulty
+          );
+          const generatedGrid = localEngine.generate(words, 30, targetDifficulty);
+          setPuzzle(generatedGrid);
+          setCurrentPuzzleTheme(targetTheme);
+          setDifficulty(targetDifficulty);
+          setWordCount(targetCount);
 
-        if (generatedGrid.placedWords.length > 0) {
-          const firstWord = generatedGrid.placedWords[0];
-          setFocusedCell({ row: firstWord.row, col: firstWord.col });
-          setDirection(firstWord.direction);
-        } else {
-          setFocusedCell(null);
+          if (generatedGrid.placedWords.length > 0) {
+            const firstWord = generatedGrid.placedWords[0];
+            setFocusedCell({ row: firstWord.row, col: firstWord.col });
+            setDirection(firstWord.direction);
+          } else {
+            setFocusedCell(null);
+          }
+        } catch (err) {
+          console.error('Erro ao gerar tabuleiro offline:', err);
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        console.error('Erro ao gerar tabuleiro offline:', err);
-      } finally {
-        setLoading(false);
-      }
-    }, 15);
-  }, []);
+      }, 15);
+    },
+    []
+  );
 
   // Inicializa restaurando o jogo salvo no localStorage ou gerando um novo tabuleiro
   useEffect(() => {
@@ -173,6 +215,7 @@ export default function App() {
       setPuzzle(saved.puzzle);
       setTheme(saved.theme || 'todos');
       setCurrentPuzzleTheme(saved.currentPuzzleTheme || saved.theme || 'todos');
+      setDifficulty(saved.difficulty || saved.puzzle.difficulty || 'medio');
       setWordCount(saved.wordCount || 8);
       setUserLetters(saved.userLetters || {});
       setRevealedWords(new Set(saved.revealedWordIds || []));
@@ -190,7 +233,7 @@ export default function App() {
       setElapsedSeconds(saved.elapsedSeconds || 0);
       setHasLoadedSavedGame(true);
     } else {
-      generateOfflinePuzzle('todos', 8);
+      generateOfflinePuzzle('todos', 8, 'medio');
       setHasLoadedSavedGame(true);
     }
   }, [generateOfflinePuzzle]);
@@ -556,6 +599,7 @@ export default function App() {
       puzzle,
       theme,
       currentPuzzleTheme,
+      difficulty,
       wordCount,
       userLetters,
       revealedWordIds: Array.from(revealedWords),
@@ -573,6 +617,7 @@ export default function App() {
     puzzle,
     theme,
     currentPuzzleTheme,
+    difficulty,
     wordCount,
     userLetters,
     revealedWords,
@@ -586,7 +631,7 @@ export default function App() {
 
   // Proteção contra início acidental de novo jogo com progresso não salvo
   const requestNewPuzzle = useCallback(
-    (targetTheme?: string, targetCount?: number) => {
+    (targetTheme?: string, targetCount?: number, targetDifficulty?: DifficultyLevel) => {
       const hasUserInput = Object.keys(userLetters).length > 0 && !isPuzzleCompleted;
       if (hasUserInput) {
         const confirmed = window.confirm(
@@ -594,7 +639,7 @@ export default function App() {
         );
         if (!confirmed) return;
       }
-      generateOfflinePuzzle(targetTheme, targetCount);
+      generateOfflinePuzzle(targetTheme, targetCount, targetDifficulty);
     },
     [userLetters, isPuzzleCompleted, generateOfflinePuzzle]
   );
@@ -641,6 +686,59 @@ export default function App() {
       <main className="main-container">
         {/* Controls Bar */}
         <section className="glass-panel control-bar">
+          {/* Difficulty Selector */}
+          <div
+            className="difficulty-selector"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              flexWrap: 'wrap',
+              width: '100%',
+              marginBottom: '0.6rem',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--text-dim)',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                width: '100%',
+                marginBottom: '2px',
+              }}
+            >
+              <Sparkles size={14} /> Dificuldade do Tabuleiro:
+            </span>
+            {(['facil', 'medio', 'dificil'] as DifficultyLevel[]).map((d) => {
+              const cfg = DIFFICULTY_CONFIG[d];
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    if (difficulty === d) return;
+                    setDifficulty(d);
+                    const defaultCount = cfg.defaultWords;
+                    setWordCount(defaultCount);
+                    requestNewPuzzle(theme, defaultCount, d);
+                  }}
+                  className={`theme-button difficulty-badge-${d} ${difficulty === d ? 'active' : ''}`}
+                  title={cfg.desc}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <span>{cfg.icon}</span> {cfg.label}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="theme-selector">
             <span
               style={{
@@ -662,7 +760,7 @@ export default function App() {
                 onClick={() => {
                   if (theme === t) return;
                   setTheme(t);
-                  requestNewPuzzle(t, wordCount);
+                  requestNewPuzzle(t, wordCount, difficulty);
                 }}
                 className={`theme-button ${theme === t ? 'active' : ''}`}
               >
@@ -696,7 +794,7 @@ export default function App() {
                 onChange={(e) => {
                   const val = Number(e.target.value);
                   setWordCount(val);
-                  requestNewPuzzle(theme, val);
+                  requestNewPuzzle(theme, val, difficulty);
                 }}
                 style={{
                   background: 'rgba(255, 255, 255, 0.05)',
@@ -726,7 +824,7 @@ export default function App() {
             <button
               className="btn-generate"
               disabled={loading}
-              onClick={() => requestNewPuzzle(theme, wordCount)}
+              onClick={() => requestNewPuzzle(theme, wordCount, difficulty)}
             >
               <RefreshCw size={16} className={loading ? 'spin' : ''} />
               {loading ? 'Gerando...' : 'Novo Tabuleiro'}
@@ -790,12 +888,35 @@ export default function App() {
                 fontSize: '0.8rem',
                 color: 'var(--accent-secondary)',
                 fontWeight: 700,
+                flexWrap: 'wrap',
               }}
             >
               <Tag size={13} />
-              <span>
-                Tema Atual: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme} (
-                {puzzle.placedWords.length} palavras no grid)
+              <span>Tema: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme}</span>
+              <span
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  color: DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.color || '#f59e0b',
+                  border: `1px solid ${DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.color || '#f59e0b'}44`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                title={
+                  puzzle.metrics
+                    ? `Score: ${puzzle.metrics.score}/100 • Cruzamentos: ${Math.round(puzzle.metrics.interlockingRatio * 100)}% • Tam. Médio: ${puzzle.metrics.averageWordLength} letras`
+                    : undefined
+                }
+              >
+                <span>{DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.icon}</span>
+                <span>{DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.label}</span>
+                {puzzle.metrics && <span>({puzzle.metrics.score} pts)</span>}
+              </span>
+              <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                • {puzzle.placedWords.length} palavras
               </span>
             </div>
             <div
@@ -829,7 +950,7 @@ export default function App() {
               </div>
               <button
                 className="btn-generate"
-                onClick={() => generateOfflinePuzzle(theme, wordCount)}
+                onClick={() => generateOfflinePuzzle(theme, wordCount, difficulty)}
               >
                 Jogar Próxima
               </button>

@@ -1,4 +1,4 @@
-import { WordNode, OfflineWordProvider } from 'shared-types';
+import { WordNode, OfflineWordProvider, DifficultyLevel } from 'shared-types';
 import { IWordProvider } from '../domain/interfaces';
 
 export class AgentWordProvider implements IWordProvider {
@@ -8,9 +8,13 @@ export class AgentWordProvider implements IWordProvider {
     this.offlineProvider = new OfflineWordProvider();
   }
 
-  async fetchThematicWords(theme: string, count: number = 8): Promise<WordNode[]> {
+  async fetchThematicWords(
+    theme: string,
+    count: number = 8,
+    difficulty?: DifficultyLevel
+  ): Promise<WordNode[]> {
     // Retorna as palavras do banco offline estruturado (>6.500 termos)
-    return this.offlineProvider.fetchThematicWords(theme, count);
+    return this.offlineProvider.fetchThematicWords(theme, count, difficulty);
   }
 
   getAvailableThemes(): string[] {
