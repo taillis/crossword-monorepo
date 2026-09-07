@@ -22,7 +22,7 @@ export class OfflineWordProvider implements IOfflineWordProvider {
   private dictionary: Record<string, WordNode[]>;
 
   constructor(customDictionary?: Record<string, WordNode[]>) {
-    this.dictionary = (customDictionary || (wordsData as unknown as Record<string, WordNode[]>));
+    this.dictionary = customDictionary || (wordsData as unknown as Record<string, WordNode[]>);
   }
 
   public getAvailableThemes(): string[] {

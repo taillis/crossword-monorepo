@@ -194,13 +194,7 @@ export class CrosswordEngine implements ICrosswordEngine {
                   row: testRow,
                   col: testCol,
                   direction: 'vertical',
-                  intersections: this.countIntersections(
-                    grid,
-                    word,
-                    testRow,
-                    testCol,
-                    'vertical'
-                  ),
+                  intersections: this.countIntersections(grid, word, testRow, testCol, 'vertical'),
                 });
               }
             }
@@ -364,7 +358,7 @@ export class CrosswordEngine implements ICrosswordEngine {
   private removePlacement(
     grid: (Cell | null)[][],
     placement: WordPlacement,
-    remainingPlacedWords: WordPlacement[]
+    _remainingPlacedWords: WordPlacement[]
   ): void {
     const isHoriz = placement.direction === 'horizontal';
 

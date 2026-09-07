@@ -11,7 +11,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon-192x192.png', 'icon-512x512.png'],
+      includeAssets: [
+        'favicon.svg',
+        'apple-touch-icon.png',
+        'icon-192x192.png',
+        'icon-512x512.png',
+      ],
       manifest: {
         name: 'Crossword Mind - Palavras Cruzadas',
         short_name: 'Crossword',

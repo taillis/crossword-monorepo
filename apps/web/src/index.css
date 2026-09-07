@@ -33,9 +33,13 @@
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    'Plus Jakarta Sans',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   background-color: var(--bg-main);
-  background-image: 
+  background-image:
     radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
     radial-gradient(at 90% 90%, rgba(6, 182, 212, 0.1) 0px, transparent 50%);
   color: var(--text-main);
@@ -66,7 +70,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) 0.75rem max(1.5rem, env(safe-area-inset-left));
+  padding: max(0.75rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) 0.75rem
+    max(1.5rem, env(safe-area-inset-left));
   border-bottom: 1px solid var(--bg-card-border);
   background: rgba(9, 13, 22, 0.92);
   backdrop-filter: blur(16px);
@@ -211,7 +216,9 @@ body {
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
 }
 
@@ -230,8 +237,12 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Crossword Board */
@@ -274,7 +285,10 @@ body {
   font-weight: 800;
   color: var(--text-main);
   cursor: pointer;
-  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    transform 0.1s ease;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
@@ -309,7 +323,9 @@ body {
 .crossword-cell.cell-focused {
   background: var(--cell-focused) !important;
   border-color: #a5b4fc !important;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 0 12px rgba(99, 102, 241, 0.8),
+    inset 0 0 4px rgba(255, 255, 255, 0.4);
   transform: scale(1.04);
   z-index: 5;
 }
@@ -317,14 +333,18 @@ body {
 .crossword-cell.cell-focused.cell-focused-wrong {
   background: #991b1b !important;
   border-color: #ef4444 !important;
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.95), inset 0 0 5px rgba(255, 255, 255, 0.5) !important;
+  box-shadow:
+    0 0 16px rgba(239, 68, 68, 0.95),
+    inset 0 0 5px rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
 }
 
 .crossword-cell.cell-focused.cell-focused-correct {
   background: #065f46 !important;
   border-color: #10b981 !important;
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.95), inset 0 0 5px rgba(255, 255, 255, 0.5) !important;
+  box-shadow:
+    0 0 16px rgba(16, 185, 129, 0.95),
+    inset 0 0 5px rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
 }
 
@@ -494,7 +514,6 @@ body {
   color: var(--accent-primary);
   min-width: 18px;
 }
-
 
 /* Stats Pill */
 .stats-badge {

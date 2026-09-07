@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+.turbo
+.git
+package-lock.json
+*.webmanifest
+packages/shared-types/src/data/words.json
+packages/shared-types/src/data/words.ts
+packages/shared-types/dist/

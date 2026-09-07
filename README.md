@@ -22,7 +22,7 @@
 
 ## 📖 Overview
 
-**Crossword Mind** is a high-performance, full-stack crossword game built in a Turborepo monorepo. It features an autonomous client-side procedural generation engine bundled with an offline dictionary of over **6,800+ Portuguese words and definitions**. 
+**Crossword Mind** is a high-performance, full-stack crossword game built in a Turborepo monorepo. It features an autonomous client-side procedural generation engine bundled with an offline dictionary of over **6,800+ Portuguese words and definitions**.
 
 Designed with a **mobile-first approach**, the application runs seamlessly on mobile devices (iOS Safari, Android Chrome) and desktops, offering responsive single-screen layouts, native software keyboard integration, real-time validation, and continuous background auto-updates.
 
@@ -42,7 +42,7 @@ Designed with a **mobile-first approach**, the application runs seamlessly on mo
   - Continuous update polling every 60s and on app visibility change (`visibilitychange`).
   - Automatic cache replacement (`skipWaiting`, `clientsClaim`, `cleanupOutdatedCaches`) ensuring users always receive the latest release seamlessly without disruptive popups.
 - **🎯 Thematic Word Categories**:
-  - Filter puzzles by themes: *Todos (All)*, *Tecnologia (Technology)*, *Ciência (Science)*, *Natureza (Nature)*, *Geografia (Geography)*, *História (History)*, and *Geral (General)*.
+  - Filter puzzles by themes: _Todos (All)_, _Tecnologia (Technology)_, _Ciência (Science)_, _Natureza (Nature)_, _Geografia (Geography)_, _História (History)_, and _Geral (General)_.
   - Customizable board density (6, 8, 10, or 12 words per puzzle).
 - **🧠 Real-Time Visual Assistance & Feedback**:
   - Dynamic cell highlighting: active word focus, completed words, and mistake indicators.
@@ -164,6 +164,26 @@ npm run test --workspace=apps/api
 
 ---
 
+## 🧹 Linting & Code Formatting
+
+The codebase enforces consistent style and quality using **ESLint 9** and **Prettier**:
+
+```bash
+# Check code formatting with Prettier
+npm run format:check
+
+# Automatically fix code formatting across the repository
+npm run format
+
+# Run ESLint static analysis across all packages
+npm run lint
+
+# Automatically fix lintable ESLint issues
+npm run lint:fix
+```
+
+---
+
 ## 📦 Production Build
 
 Build all packages and production bundles:
@@ -218,24 +238,26 @@ docker run -d -p 3000:3000 crossword-app
 
 ### Environment Variables
 
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `PORT` | `3000` | HTTP port for the combined web and API server |
-| `NODE_ENV` | `production` | Node.js runtime environment |
-| `STATIC_ROOT` | `/app/apps/web/dist` | Directory path for frontend static assets |
+| Variable      | Default              | Description                                   |
+| :------------ | :------------------- | :-------------------------------------------- |
+| `PORT`        | `3000`               | HTTP port for the combined web and API server |
+| `NODE_ENV`    | `production`         | Node.js runtime environment                   |
+| `STATIC_ROOT` | `/app/apps/web/dist` | Directory path for frontend static assets     |
 
 ### Automated CI/CD (GitHub Actions + GHCR)
 
 The CI/CD pipeline ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) automates testing and container publishing for both Pull Requests and production releases:
 
 #### 🧪 On Pull Requests (`pull_request` -> `main`)
-1. **Quality Gate**: Automatically installs dependencies, runs Vitest unit tests, and verifies the full TypeScript/Vite build across all monorepo packages.
+
+1. **Quality Gate**: Verifies Prettier code formatting (`npm run format:check`), executes ESLint static analysis (`npm run lint`), runs Vitest unit tests (`npm test`), and verifies the full TypeScript/Vite production build (`npm run build`).
 2. **Preview Docker Image**: Builds and pushes preview images to GHCR:
    - **Floating PR Tag:** `ghcr.io/taillis/crossword-monorepo:pr-<number>-dev` (e.g. `pr-1-dev`)
    - **Immutable Run Tag:** `ghcr.io/taillis/crossword-monorepo:pr-<number>-<run_number>-dev` (e.g. `pr-1-3-dev`)
 3. **Automated PR Comment**: Posts a ready-to-use `docker run` command directly onto the Pull Request for instant team/reviewer testing.
 
 #### 🚀 On Main Branch (`push` -> `main`)
+
 1. Runs all automated unit tests and build checks.
 2. Builds the final production Docker image.
 3. Automatically publishes the production release to **GitHub Container Registry**:
@@ -248,6 +270,7 @@ The CI/CD pipeline ([`.github/workflows/deploy.yml`](.github/workflows/deploy.ym
 ## 📲 Installing as a PWA on Mobile
 
 ### iOS (Safari)
+
 1. Open Safari and navigate to `http://<your-host-ip>:5173` (or your production URL).
 2. Tap the **Share** button (the square icon with an upward arrow at the bottom).
 3. Scroll down and select **Add to Home Screen** (icon with `+`).
@@ -255,6 +278,7 @@ The CI/CD pipeline ([`.github/workflows/deploy.yml`](.github/workflows/deploy.ym
 5. Launch the app from your home screen. It will open in standalone fullscreen mode without Safari browser toolbars and function 100% offline.
 
 ### Android (Google Chrome)
+
 1. Open Google Chrome and navigate to the app URL.
 2. Tap the three-dot menu in the upper-right corner.
 3. Tap **Install app** or **Add to Home screen**.
@@ -274,7 +298,8 @@ This repository enforces **[Conventional Commits](https://www.conventionalcommit
 - `test:` Adding or updating unit tests
 - `chore:` Maintenance, dependency updates, and build tool adjustments
 
-*Example:*
+_Example:_
+
 ```bash
 git commit -m "feat(web): add silent auto-update service worker lifecycle"
 ```
