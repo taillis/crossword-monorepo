@@ -226,13 +226,22 @@ docker run -d -p 3000:3000 crossword-app
 
 ### Automated CI/CD (GitHub Actions + GHCR)
 
-Every push to the `main` branch or version tag (`v*`) triggers an automated GitHub Actions pipeline (`.github/workflows/deploy.yml`) that:
-1. Compiles and tests the entire monorepo.
-2. Builds an optimized multi-stage Docker container.
-3. Automatically authenticates and publishes the image to **GitHub Container Registry**:
+The CI/CD pipeline ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) automates testing and container publishing for both Pull Requests and production releases:
+
+#### 🧪 On Pull Requests (`pull_request` -> `main`)
+1. **Quality Gate**: Automatically installs dependencies, runs Vitest unit tests, and verifies the full TypeScript/Vite build across all monorepo packages.
+2. **Preview Docker Image**: Builds and pushes preview images to GHCR:
+   - **Floating PR Tag:** `ghcr.io/taillis/crossword-monorepo:pr-<number>-dev` (e.g. `pr-1-dev`)
+   - **Immutable Run Tag:** `ghcr.io/taillis/crossword-monorepo:pr-<number>-<run_number>-dev` (e.g. `pr-1-3-dev`)
+3. **Automated PR Comment**: Posts a ready-to-use `docker run` command directly onto the Pull Request for instant team/reviewer testing.
+
+#### 🚀 On Main Branch (`push` -> `main`)
+1. Runs all automated unit tests and build checks.
+2. Builds the final production Docker image.
+3. Automatically publishes the production release to **GitHub Container Registry**:
    - `ghcr.io/taillis/crossword-monorepo:latest`
    - `ghcr.io/taillis/crossword-monorepo:sha-<commit>`
-   - `ghcr.io/taillis/crossword-monorepo:<version>` (for tagged releases)
+   - `ghcr.io/taillis/crossword-monorepo:<version>` (for tagged releases like `v1.0.0`)
 
 ---
 

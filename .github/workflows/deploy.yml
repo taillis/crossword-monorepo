@@ -1,4 +1,4 @@
-name: Build and Publish Container Image
+name: CI/CD Pipeline
 
 on:
   push:
@@ -6,14 +6,42 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
+  pull-requests: write
 
 jobs:
+  test:
+    name: Run Automated Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Verify Build
+        run: npm run build
+
   build-and-push:
+    name: Build & Publish Docker Image
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -35,9 +63,15 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=sha,prefix=sha-,format=short
+            # Pull Request tags (e.g. pr-1-dev and incremental pr-1-4-dev)
+            type=raw,value=pr-${{ github.event.number }}-dev,enable=${{ github.event_name == 'pull_request' }}
+            type=raw,value=pr-${{ github.event.number }}-${{ github.run_number }}-dev,enable=${{ github.event_name == 'pull_request' }}
+            # Main branch production tags
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+            type=sha,prefix=sha-,format=short,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+            # Semantic release tags (e.g. v1.0.0)
             type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -48,3 +82,52 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Comment PR with Docker Preview Image
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const repo = context.repo.repo;
+            const owner = context.repo.owner;
+            const imageTag = `ghcr.io/${owner}/${repo}:pr-${prNumber}-dev`;
+            const runTag = `ghcr.io/${owner}/${repo}:pr-${prNumber}-${context.runNumber}-dev`;
+
+            const body = `### 🐳 Docker Preview Image Ready!
+
+            This pull request passed all automated tests and a preview container has been published to GitHub Container Registry.
+
+            **Run this build locally or in a preview environment:**
+            \`\`\`bash
+            docker run -d -p 3000:3000 --name crossword-pr-${prNumber} ${imageTag}
+            \`\`\`
+
+            - **Floating PR Tag:** \`${imageTag}\`
+            - **Immutable Run Tag:** \`${runTag}\`
+            `;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: prNumber,
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('Docker Preview Image Ready'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
