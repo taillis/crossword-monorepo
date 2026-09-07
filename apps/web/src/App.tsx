@@ -20,7 +20,13 @@ import {
   CheckCircle2,
   Tag,
   AlertCircle,
+  Clock,
+  Save,
 } from 'lucide-react';
+import {
+  loadActiveGame,
+  saveActiveGame,
+} from './services/gameStorage';
 
 const offlineProvider = new OfflineWordProvider();
 const localEngine = new CrosswordEngine(28);
@@ -31,6 +37,8 @@ export default function App() {
   const [currentPuzzleTheme, setCurrentPuzzleTheme] = useState<string>('todos');
   const [wordCount, setWordCount] = useState<number>(8);
   const [loading, setLoading] = useState<boolean>(false);
+  const [hasLoadedSavedGame, setHasLoadedSavedGame] = useState<boolean>(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   // Estados de Digitação e Foco
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
@@ -130,6 +138,7 @@ export default function App() {
     setIsVerifying(false);
     setUserLetters({});
     setRevealedWords(new Set());
+    setElapsedSeconds(0);
 
     // Executa assíncrono para garantir repaint imediato do botão com spinner
     setTimeout(() => {
@@ -154,9 +163,30 @@ export default function App() {
     }, 15);
   }, []);
 
-  // Inicializa o primeiro tabuleiro ao carregar (executa apenas uma vez no mount)
+  // Inicializa restaurando o jogo salvo no localStorage ou gerando um novo tabuleiro
   useEffect(() => {
-    generateOfflinePuzzle('todos', 8);
+    const saved = loadActiveGame();
+    if (saved && saved.puzzle && saved.puzzle.placedWords && saved.puzzle.placedWords.length > 0) {
+      setPuzzle(saved.puzzle);
+      setTheme(saved.theme || 'todos');
+      setCurrentPuzzleTheme(saved.currentPuzzleTheme || saved.theme || 'todos');
+      setWordCount(saved.wordCount || 8);
+      setUserLetters(saved.userLetters || {});
+      setRevealedWords(new Set(saved.revealedWordIds || []));
+      if (saved.focusedCell) {
+        setFocusedCell(saved.focusedCell);
+      } else if (saved.puzzle.placedWords.length > 0) {
+        setFocusedCell({ row: saved.puzzle.placedWords[0].row, col: saved.puzzle.placedWords[0].col });
+      }
+      setDirection(saved.direction || 'horizontal');
+      setIsVerifying(Boolean(saved.isVerifying));
+      setRevealSolutions(Boolean(saved.revealSolutions));
+      setElapsedSeconds(saved.elapsedSeconds || 0);
+      setHasLoadedSavedGame(true);
+    } else {
+      generateOfflinePuzzle('todos', 8);
+      setHasLoadedSavedGame(true);
+    }
   }, [generateOfflinePuzzle]);
 
   // Palavra ativa baseada no foco e na direção atual
@@ -481,6 +511,80 @@ export default function App() {
     return { completedWordIds: completed, wrongWordIds: wrong };
   }, [puzzle.placedWords, isWordCompleted, isWordWrong]);
 
+  // Cronômetro do jogo: incrementa a cada segundo enquanto o jogo estiver em andamento
+  useEffect(() => {
+    if (!hasLoadedSavedGame || loading || isPuzzleCompleted || puzzle.placedWords.length === 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [hasLoadedSavedGame, loading, isPuzzleCompleted, puzzle.placedWords.length]);
+
+  // Formatação legível do tempo decorrido (MM:SS)
+  const formattedTime = useMemo(() => {
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = elapsedSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, [elapsedSeconds]);
+
+  // Auto-Save: persiste qualquer progresso no localStorage automaticamente
+  useEffect(() => {
+    if (!hasLoadedSavedGame || loading || puzzle.placedWords.length === 0) {
+      return;
+    }
+
+    saveActiveGame({
+      version: 1,
+      puzzle,
+      theme,
+      currentPuzzleTheme,
+      wordCount,
+      userLetters,
+      revealedWordIds: Array.from(revealedWords),
+      focusedCell,
+      direction,
+      isVerifying,
+      revealSolutions,
+      elapsedSeconds,
+      isCompleted: isPuzzleCompleted,
+      updatedAt: Date.now(),
+    });
+  }, [
+    hasLoadedSavedGame,
+    loading,
+    puzzle,
+    theme,
+    currentPuzzleTheme,
+    wordCount,
+    userLetters,
+    revealedWords,
+    focusedCell,
+    direction,
+    isVerifying,
+    revealSolutions,
+    elapsedSeconds,
+    isPuzzleCompleted,
+  ]);
+
+  // Proteção contra início acidental de novo jogo com progresso não salvo
+  const requestNewPuzzle = useCallback(
+    (targetTheme?: string, targetCount?: number) => {
+      const hasUserInput = Object.keys(userLetters).length > 0 && !isPuzzleCompleted;
+      if (hasUserInput) {
+        const confirmed = window.confirm(
+          'Deseja iniciar um novo jogo? O progresso da cruzadinha atual será substituído.'
+        );
+        if (!confirmed) return;
+      }
+      generateOfflinePuzzle(targetTheme, targetCount);
+    },
+    [userLetters, isPuzzleCompleted, generateOfflinePuzzle]
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Top Header */}
@@ -493,9 +597,13 @@ export default function App() {
           </span>
         </div>
         <div className="header-actions">
-          <span className="stats-badge">
-            <Trophy size={14} />
-            {completedWordsCount} / {puzzle.placedWords.length} Acertos
+          <span className="stats-badge" title="Tempo decorrido nesta cruzadinha">
+            <Clock size={14} color="#38bdf8" />
+            {formattedTime}
+          </span>
+          <span className="stats-badge" title="Palavras corretas">
+            <Trophy size={14} color="#fbbf24" />
+            {completedWordsCount} / {puzzle.placedWords.length}
           </span>
           <button
             onClick={() => setIsVerifying(!isVerifying)}
@@ -527,8 +635,9 @@ export default function App() {
               <button
                 key={t}
                 onClick={() => {
+                  if (theme === t) return;
                   setTheme(t);
-                  generateOfflinePuzzle(t, wordCount);
+                  requestNewPuzzle(t, wordCount);
                 }}
                 className={`theme-button ${theme === t ? 'active' : ''}`}
               >
@@ -545,7 +654,7 @@ export default function App() {
                 onChange={(e) => {
                   const val = Number(e.target.value);
                   setWordCount(val);
-                  generateOfflinePuzzle(theme, val);
+                  requestNewPuzzle(theme, val);
                 }}
                 style={{
                   background: 'rgba(255, 255, 255, 0.05)',
@@ -567,7 +676,7 @@ export default function App() {
             <button
               className="btn-generate"
               disabled={loading}
-              onClick={() => generateOfflinePuzzle(theme, wordCount)}
+              onClick={() => requestNewPuzzle(theme, wordCount)}
             >
               <RefreshCw size={16} className={loading ? 'spin' : ''} />
               {loading ? 'Gerando...' : 'Novo Tabuleiro'}
@@ -607,21 +716,45 @@ export default function App() {
             onKeyDown={handleMobileInputKeyDown}
           />
 
-          {/* Indicador do tema ativo */}
+          {/* Indicador do tema ativo e status de salvamento */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              alignSelf: 'flex-start',
+              justifyContent: 'space-between',
+              width: '100%',
               marginBottom: '0.75rem',
-              fontSize: '0.8rem',
-              color: 'var(--accent-secondary)',
-              fontWeight: 700,
+              flexWrap: 'wrap',
+              gap: '0.5rem',
             }}
           >
-            <Tag size={13} />
-            <span>Tema Atual: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme} ({puzzle.placedWords.length} palavras no grid)</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--accent-secondary)',
+                fontWeight: 700,
+              }}
+            >
+              <Tag size={13} />
+              <span>Tema Atual: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme} ({puzzle.placedWords.length} palavras no grid)</span>
+            </div>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                fontSize: '0.75rem',
+                color: '#10b981',
+                fontWeight: 500,
+              }}
+              title="Todas as suas respostas são salvas automaticamente no aparelho"
+            >
+              <Save size={12} />
+              <span>Salvo automaticamente</span>
+            </div>
           </div>
 
           {isPuzzleCompleted && (
@@ -630,7 +763,9 @@ export default function App() {
                 <CheckCircle2 size={24} color="#10b981" />
                 <div>
                   <h4 style={{ margin: 0, color: '#10b981', fontWeight: 800 }}>Parabéns! Cruzadinha Concluída!</h4>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Você preencheu todas as palavras corretamente.</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Você preencheu todas as palavras em <strong>{formattedTime}</strong>.
+                  </p>
                 </div>
               </div>
               <button
@@ -852,6 +987,10 @@ export default function App() {
             </button>
             <button
               onClick={() => {
+                if (Object.keys(userLetters).length > 0) {
+                  const confirmed = window.confirm('Deseja apagar todas as respostas digitadas nesta cruzadinha?');
+                  if (!confirmed) return;
+                }
                 setUserLetters({});
                 setRevealedWords(new Set());
                 focusHiddenInput();
