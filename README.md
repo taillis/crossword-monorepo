@@ -176,6 +176,66 @@ This compiles shared packages, executes type checking (`tsc`), and bundles stati
 
 ---
 
+## 🐳 Docker & Container Deployment
+
+Crossword Mind is packaged as a **single lightweight production container** that serves both the static PWA frontend and the Fastify REST API under a single unified port with zero external web server dependencies (like Nginx).
+
+### Running with Docker
+
+Run the latest image directly from the GitHub Container Registry (GHCR):
+
+```bash
+docker run -d \
+  --name crossword-app \
+  -p 3000:3000 \
+  --restart unless-stopped \
+  ghcr.io/taillis/crossword-monorepo:latest
+```
+
+Access the app at `http://localhost:3000`.
+
+### Running with Docker Compose
+
+A pre-configured `docker-compose.yml` is included in the root directory:
+
+```bash
+# Start the container
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop the container
+docker compose down
+```
+
+### Building the Image Locally
+
+```bash
+docker build -t crossword-app .
+docker run -d -p 3000:3000 crossword-app
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `PORT` | `3000` | HTTP port for the combined web and API server |
+| `NODE_ENV` | `production` | Node.js runtime environment |
+| `STATIC_ROOT` | `/app/apps/web/dist` | Directory path for frontend static assets |
+
+### Automated CI/CD (GitHub Actions + GHCR)
+
+Every push to the `main` branch or version tag (`v*`) triggers an automated GitHub Actions pipeline (`.github/workflows/deploy.yml`) that:
+1. Compiles and tests the entire monorepo.
+2. Builds an optimized multi-stage Docker container.
+3. Automatically authenticates and publishes the image to **GitHub Container Registry**:
+   - `ghcr.io/taillis/crossword-monorepo:latest`
+   - `ghcr.io/taillis/crossword-monorepo:sha-<commit>`
+   - `ghcr.io/taillis/crossword-monorepo:<version>` (for tagged releases)
+
+---
+
 ## 📲 Installing as a PWA on Mobile
 
 ### iOS (Safari)

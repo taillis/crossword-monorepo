@@ -6,7 +6,7 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && mkdir -p dist/data && cp src/data/words.json dist/data/words.json",
+    "build": "tsc",
     "dev": "tsc --watch"
   },
   "devDependencies": {

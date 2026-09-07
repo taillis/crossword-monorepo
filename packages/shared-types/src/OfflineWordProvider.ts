@@ -1,5 +1,5 @@
 import { WordNode } from './types.js';
-import wordsData from './data/words.json';
+import wordsData from './data/words.js';
 
 export const THEME_LABELS: Record<string, string> = {
   todos: 'Todos',

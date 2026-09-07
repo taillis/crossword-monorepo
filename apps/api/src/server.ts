@@ -1,5 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import fs from 'fs';
 import { GeneratePuzzleUseCase } from './application/useCases/GeneratePuzzleUseCase';
 import { InMemoryPuzzleRepository } from './infrastructure/InMemoryPuzzleRepository';
 import { AgentWordProvider } from './infrastructure/AgentWordProvider';
@@ -11,6 +14,23 @@ const fastify = Fastify({ logger: true });
 fastify.register(cors, {
   origin: '*',
 });
+
+// Suporte a servir o frontend PWA na mesma imagem Docker (Single-Container Fullstack)
+const staticRoot = process.env.STATIC_ROOT || path.join(__dirname, '../../web/dist');
+if (fs.existsSync(staticRoot)) {
+  fastify.register(fastifyStatic, {
+    root: staticRoot,
+    prefix: '/',
+  });
+
+  fastify.setNotFoundHandler((req, reply) => {
+    if (req.raw.url?.startsWith('/puzzles') || req.raw.url?.startsWith('/health') || req.raw.url?.startsWith('/api')) {
+      reply.status(404).send({ error: 'Endpoint not found' });
+    } else {
+      reply.sendFile('index.html');
+    }
+  });
+}
 
 // Composição de Dependências (Clean Architecture)
 const puzzleRepo = new InMemoryPuzzleRepository();
