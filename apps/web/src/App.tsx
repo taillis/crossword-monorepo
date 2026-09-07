@@ -23,16 +23,16 @@ import {
   Clock,
   Save,
 } from 'lucide-react';
-import {
-  loadActiveGame,
-  saveActiveGame,
-} from './services/gameStorage';
+import { loadActiveGame, saveActiveGame } from './services/gameStorage';
 
 const offlineProvider = new OfflineWordProvider();
 const localEngine = new CrosswordEngine(28);
 
 export default function App() {
-  const [puzzle, setPuzzle] = useState<PuzzleGrid>({ bounds: { rows: 0, cols: 0 }, placedWords: [] });
+  const [puzzle, setPuzzle] = useState<PuzzleGrid>({
+    bounds: { rows: 0, cols: 0 },
+    placedWords: [],
+  });
   const [theme, setTheme] = useState<string>('todos');
   const [currentPuzzleTheme, setCurrentPuzzleTheme] = useState<string>('todos');
   const [wordCount, setWordCount] = useState<number>(8);
@@ -61,9 +61,12 @@ export default function App() {
   }, []);
 
   const themeRef = useRef(theme);
-  themeRef.current = theme;
   const wordCountRef = useRef(wordCount);
-  wordCountRef.current = wordCount;
+
+  useEffect(() => {
+    themeRef.current = theme;
+    wordCountRef.current = wordCount;
+  }, [theme, wordCount]);
 
   // Monitorar largura da janela para calcular exatamente o tamanho da célula sem scroll
   const [windowWidth, setWindowWidth] = useState<number>(() =>
@@ -118,7 +121,7 @@ export default function App() {
 
   // Cálculo matemático exato do tamanho da célula para NUNCA estourar a tela do celular
   const cellSize = useMemo(() => {
-    const cols = gridData?.cols || 10;
+    const cols = gridData.cols || 10;
     if (windowWidth <= 768) {
       // Margem lateral total de 36px (container, board e padding do grid)
       const availableWidth = windowWidth - 36;
@@ -127,7 +130,7 @@ export default function App() {
       return Math.max(18, Math.min(computed, 40));
     }
     return 44;
-  }, [gridData?.cols, windowWidth]);
+  }, [gridData.cols, windowWidth]);
 
   // Geração 100% autônoma e offline no próprio navegador
   const generateOfflinePuzzle = useCallback((selectedTheme?: string, count?: number) => {
@@ -176,7 +179,10 @@ export default function App() {
       if (saved.focusedCell) {
         setFocusedCell(saved.focusedCell);
       } else if (saved.puzzle.placedWords.length > 0) {
-        setFocusedCell({ row: saved.puzzle.placedWords[0].row, col: saved.puzzle.placedWords[0].col });
+        setFocusedCell({
+          row: saved.puzzle.placedWords[0].row,
+          col: saved.puzzle.placedWords[0].col,
+        });
       }
       setDirection(saved.direction || 'horizontal');
       setIsVerifying(Boolean(saved.isVerifying));
@@ -200,9 +206,17 @@ export default function App() {
     const match = puzzle.placedWords.find((pw) => {
       if (pw.direction !== direction) return false;
       if (direction === 'horizontal') {
-        return pw.row === focusedCell.row && focusedCell.col >= pw.col && focusedCell.col < pw.col + pw.length;
+        return (
+          pw.row === focusedCell.row &&
+          focusedCell.col >= pw.col &&
+          focusedCell.col < pw.col + pw.length
+        );
       } else {
-        return pw.col === focusedCell.col && focusedCell.row >= pw.row && focusedCell.row < pw.row + pw.length;
+        return (
+          pw.col === focusedCell.col &&
+          focusedCell.row >= pw.row &&
+          focusedCell.row < pw.row + pw.length
+        );
       }
     });
 
@@ -592,7 +606,10 @@ export default function App() {
         <div className="brand-title">
           <Layers size={26} color="#6366f1" />
           <span>Crossword Mind</span>
-          <span className="brand-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span
+            className="brand-badge"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
             <WifiOff size={11} /> 100% Offline (6.800+ Palavras)
           </span>
         </div>
@@ -613,10 +630,7 @@ export default function App() {
             <Check size={14} />
             {isVerifying ? 'Ocultar' : 'Verificar'}
           </button>
-          <button
-            onClick={() => setRevealSolutions(!revealSolutions)}
-            className="btn-action"
-          >
+          <button onClick={() => setRevealSolutions(!revealSolutions)} className="btn-action">
             <HelpCircle size={14} />
             {revealSolutions ? 'Ocultar' : 'Gabarito'}
           </button>
@@ -628,7 +642,18 @@ export default function App() {
         {/* Controls Bar */}
         <section className="glass-panel control-bar">
           <div className="theme-selector">
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', width: '100%', marginBottom: '2px' }}>
+            <span
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--text-dim)',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                width: '100%',
+                marginBottom: '2px',
+              }}
+            >
               <BookOpen size={14} /> Tema:
             </span>
             {availableThemes.map((t) => (
@@ -646,8 +671,25 @@ export default function App() {
             ))}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+              flexWrap: 'wrap',
+              width: '100%',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                color: 'var(--text-muted)',
+                fontSize: '0.85rem',
+              }}
+            >
               <span>Palavras:</span>
               <select
                 value={wordCount}
@@ -666,10 +708,18 @@ export default function App() {
                   cursor: 'pointer',
                 }}
               >
-                <option value={6} style={{ background: '#1e293b' }}>6 palavras</option>
-                <option value={8} style={{ background: '#1e293b' }}>8 palavras</option>
-                <option value={10} style={{ background: '#1e293b' }}>10 palavras</option>
-                <option value={12} style={{ background: '#1e293b' }}>12 palavras</option>
+                <option value={6} style={{ background: '#1e293b' }}>
+                  6 palavras
+                </option>
+                <option value={8} style={{ background: '#1e293b' }}>
+                  8 palavras
+                </option>
+                <option value={10} style={{ background: '#1e293b' }}>
+                  10 palavras
+                </option>
+                <option value={12} style={{ background: '#1e293b' }}>
+                  12 palavras
+                </option>
               </select>
             </div>
 
@@ -685,7 +735,11 @@ export default function App() {
         </section>
 
         {/* Tabuleiro Central */}
-        <section className="glass-panel board-container" ref={boardRef} style={{ position: 'relative' }}>
+        <section
+          className="glass-panel board-container"
+          ref={boardRef}
+          style={{ position: 'relative' }}
+        >
           {/* Input invisível para acionar o teclado nativo no iOS e Android */}
           <input
             ref={hiddenInputRef}
@@ -739,7 +793,10 @@ export default function App() {
               }}
             >
               <Tag size={13} />
-              <span>Tema Atual: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme} ({puzzle.placedWords.length} palavras no grid)</span>
+              <span>
+                Tema Atual: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme} (
+                {puzzle.placedWords.length} palavras no grid)
+              </span>
             </div>
             <div
               style={{
@@ -762,7 +819,9 @@ export default function App() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <CheckCircle2 size={24} color="#10b981" />
                 <div>
-                  <h4 style={{ margin: 0, color: '#10b981', fontWeight: 800 }}>Parabéns! Cruzadinha Concluída!</h4>
+                  <h4 style={{ margin: 0, color: '#10b981', fontWeight: 800 }}>
+                    Parabéns! Cruzadinha Concluída!
+                  </h4>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     Você preencheu todas as palavras em <strong>{formattedTime}</strong>.
                   </p>
@@ -784,14 +843,14 @@ export default function App() {
                 background: isActiveWordWrong
                   ? 'rgba(239, 68, 68, 0.15)'
                   : isActiveWordCompleted
-                  ? 'rgba(16, 185, 129, 0.12)'
-                  : 'rgba(99, 102, 241, 0.12)',
+                    ? 'rgba(16, 185, 129, 0.12)'
+                    : 'rgba(99, 102, 241, 0.12)',
                 border: `1px solid ${
                   isActiveWordWrong
                     ? 'rgba(239, 68, 68, 0.5)'
                     : isActiveWordCompleted
-                    ? 'rgba(16, 185, 129, 0.3)'
-                    : 'rgba(99, 102, 241, 0.25)'
+                      ? 'rgba(16, 185, 129, 0.3)'
+                      : 'rgba(99, 102, 241, 0.25)'
                 }`,
               }}
             >
@@ -809,19 +868,32 @@ export default function App() {
                   <span
                     style={{
                       fontSize: '0.72rem',
-                      color: isActiveWordWrong ? '#f87171' : isActiveWordCompleted ? '#34d399' : '#818cf8',
+                      color: isActiveWordWrong
+                        ? '#f87171'
+                        : isActiveWordCompleted
+                          ? '#34d399'
+                          : '#818cf8',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                     }}
                   >
-                    Pista ({activeWord.direction === 'horizontal' ? 'Horizontal' : 'Vertical'} - {activeWord.length} letras)
+                    Pista ({activeWord.direction === 'horizontal' ? 'Horizontal' : 'Vertical'} -{' '}
+                    {activeWord.length} letras)
                     {isActiveWordWrong
                       ? ' • Palavra Incorreta'
                       : isActiveWordCompleted
-                      ? ' • Concluída'
-                      : ''}:
+                        ? ' • Concluída'
+                        : ''}
+                    :
                   </span>
-                  <p style={{ fontSize: '0.9rem', color: '#f8fafc', fontWeight: 500, margin: '1px 0 0 0' }}>
+                  <p
+                    style={{
+                      fontSize: '0.9rem',
+                      color: '#f8fafc',
+                      fontWeight: 500,
+                      margin: '1px 0 0 0',
+                    }}
+                  >
                     {activeWord.clue}
                   </p>
                 </div>
@@ -838,7 +910,11 @@ export default function App() {
                   flexShrink: 0,
                   color: isActiveWordCompleted ? '#34d399' : 'var(--text-main)',
                 }}
-                title={isActiveWordCompleted ? 'Esta palavra já foi concluída' : 'Preenche a palavra ativa no tabuleiro'}
+                title={
+                  isActiveWordCompleted
+                    ? 'Esta palavra já foi concluída'
+                    : 'Preenche a palavra ativa no tabuleiro'
+                }
               >
                 {isActiveWordCompleted ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -854,11 +930,13 @@ export default function App() {
           {gridData.rows > 0 ? (
             <div
               className="crossword-grid"
-              style={{
-                '--cell-size': `${cellSize}px`,
-                gridTemplateColumns: `repeat(${gridData.cols}, ${cellSize}px)`,
-                gridTemplateRows: `repeat(${gridData.rows}, ${cellSize}px)`,
-              } as React.CSSProperties}
+              style={
+                {
+                  '--cell-size': `${cellSize}px`,
+                  gridTemplateColumns: `repeat(${gridData.cols}, ${cellSize}px)`,
+                  gridTemplateRows: `repeat(${gridData.rows}, ${cellSize}px)`,
+                } as React.CSSProperties
+              }
             >
               {Array.from({ length: gridData.rows }).map((_, r) =>
                 Array.from({ length: gridData.cols }).map((_, c) => {
@@ -880,9 +958,15 @@ export default function App() {
                   let isPartOfActiveWord = false;
                   if (activeWord) {
                     if (activeWord.direction === 'horizontal') {
-                      isPartOfActiveWord = activeWord.row === r && c >= activeWord.col && c < activeWord.col + activeWord.length;
+                      isPartOfActiveWord =
+                        activeWord.row === r &&
+                        c >= activeWord.col &&
+                        c < activeWord.col + activeWord.length;
                     } else {
-                      isPartOfActiveWord = activeWord.col === c && r >= activeWord.row && r < activeWord.row + activeWord.length;
+                      isPartOfActiveWord =
+                        activeWord.col === c &&
+                        r >= activeWord.row &&
+                        r < activeWord.row + activeWord.length;
                     }
                   }
 
@@ -988,7 +1072,9 @@ export default function App() {
             <button
               onClick={() => {
                 if (Object.keys(userLetters).length > 0) {
-                  const confirmed = window.confirm('Deseja apagar todas as respostas digitadas nesta cruzadinha?');
+                  const confirmed = window.confirm(
+                    'Deseja apagar todas as respostas digitadas nesta cruzadinha?'
+                  );
                   if (!confirmed) return;
                 }
                 setUserLetters({});
@@ -1022,7 +1108,10 @@ export default function App() {
                     completed ? 'completed' : wrong ? 'wrong' : ''
                   }`}
                 >
-                  <span className="clue-badge" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  <span
+                    className="clue-badge"
+                    style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                  >
                     {completed ? (
                       <Check size={13} color="#10b981" />
                     ) : wrong ? (
@@ -1035,7 +1124,14 @@ export default function App() {
                     <p style={{ margin: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                       {pw.clue}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '2px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        marginTop: '2px',
+                      }}
+                    >
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
                         ({pw.length} letras)
                       </span>
@@ -1068,7 +1164,10 @@ export default function App() {
                     completed ? 'completed' : wrong ? 'wrong' : ''
                   }`}
                 >
-                  <span className="clue-badge" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  <span
+                    className="clue-badge"
+                    style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                  >
                     {completed ? (
                       <Check size={13} color="#10b981" />
                     ) : wrong ? (
@@ -1081,7 +1180,14 @@ export default function App() {
                     <p style={{ margin: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                       {pw.clue}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '2px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        marginTop: '2px',
+                      }}
+                    >
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
                         ({pw.length} letras)
                       </span>

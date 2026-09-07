@@ -13,9 +13,7 @@ describe('CrosswordEngine (Backtracking)', () => {
   });
 
   it('deve posicionar a primeira palavra no grid', () => {
-    const words: WordNode[] = [
-      { word: 'REACT', clue: 'Biblioteca UI' }
-    ];
+    const words: WordNode[] = [{ word: 'REACT', clue: 'Biblioteca UI' }];
     const result = engine.generate(words);
     expect(result.placedWords).toHaveLength(1);
     expect(result.placedWords[0].word).toBe('REACT');

@@ -9,7 +9,10 @@ export class GeneratePuzzleUseCase {
     private crosswordEngine: ICrosswordEngine
   ) {}
 
-  async execute(theme: string = 'tecnologia', wordCount: number = 8): Promise<{ id: string; grid: PuzzleGrid }> {
+  async execute(
+    theme: string = 'tecnologia',
+    wordCount: number = 8
+  ): Promise<{ id: string; grid: PuzzleGrid }> {
     // 1. Busca palavras temáticas do provedor
     const words = await this.wordProvider.fetchThematicWords(theme, wordCount);
 

@@ -58,7 +58,8 @@ export function loadActiveGame(): SavedGameState | null {
       direction: data.direction === 'vertical' ? 'vertical' : 'horizontal',
       isVerifying: Boolean(data.isVerifying),
       revealSolutions: Boolean(data.revealSolutions),
-      elapsedSeconds: typeof data.elapsedSeconds === 'number' ? Math.max(0, data.elapsedSeconds) : 0,
+      elapsedSeconds:
+        typeof data.elapsedSeconds === 'number' ? Math.max(0, data.elapsedSeconds) : 0,
       isCompleted: Boolean(data.isCompleted),
       updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
     };

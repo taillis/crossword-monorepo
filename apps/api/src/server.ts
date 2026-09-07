@@ -24,7 +24,11 @@ if (fs.existsSync(staticRoot)) {
   });
 
   fastify.setNotFoundHandler((req, reply) => {
-    if (req.raw.url?.startsWith('/puzzles') || req.raw.url?.startsWith('/health') || req.raw.url?.startsWith('/api')) {
+    if (
+      req.raw.url?.startsWith('/puzzles') ||
+      req.raw.url?.startsWith('/health') ||
+      req.raw.url?.startsWith('/api')
+    ) {
       reply.status(404).send({ error: 'Endpoint not found' });
     } else {
       reply.sendFile('index.html');
