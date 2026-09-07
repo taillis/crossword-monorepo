@@ -6,6 +6,7 @@ import {
   WordPlacement,
   Direction,
   THEME_LABELS,
+  DifficultyLevel,
 } from 'shared-types';
 import {
   RefreshCw,
@@ -18,15 +19,43 @@ import {
   Check,
   Trash2,
   CheckCircle2,
-  Tag,
   AlertCircle,
   Clock,
   Save,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { loadActiveGame, saveActiveGame } from './services/gameStorage';
 
 const offlineProvider = new OfflineWordProvider();
 const localEngine = new CrosswordEngine(28);
+
+const DIFFICULTY_CONFIG: Record<
+  DifficultyLevel,
+  { label: string; icon: string; defaultWords: number; desc: string; color: string }
+> = {
+  facil: {
+    label: 'Fácil',
+    icon: '🟢',
+    defaultWords: 6,
+    desc: 'Palavras curtas (3-6 letras) e alta densidade de cruzamentos',
+    color: '#10b981',
+  },
+  medio: {
+    label: 'Médio',
+    icon: '🟡',
+    defaultWords: 8,
+    desc: 'Vocabulário balanceado (5-9 letras) e cruzamentos dinâmicos',
+    color: '#f59e0b',
+  },
+  dificil: {
+    label: 'Difícil',
+    icon: '🔴',
+    defaultWords: 12,
+    desc: 'Palavras longas (7+ letras) e grade mais desafiadora',
+    color: '#ef4444',
+  },
+};
 
 export default function App() {
   const [puzzle, setPuzzle] = useState<PuzzleGrid>({
@@ -35,10 +64,24 @@ export default function App() {
   });
   const [theme, setTheme] = useState<string>('todos');
   const [currentPuzzleTheme, setCurrentPuzzleTheme] = useState<string>('todos');
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('medio');
   const [wordCount, setWordCount] = useState<number>(8);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoadedSavedGame, setHasLoadedSavedGame] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+
+  // Estados da Gaveta/Modal de Configurações
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [pendingTheme, setPendingTheme] = useState<string>('todos');
+  const [pendingDifficulty, setPendingDifficulty] = useState<DifficultyLevel>('medio');
+  const [pendingWordCount, setPendingWordCount] = useState<number>(8);
+
+  const openSettings = useCallback(() => {
+    setPendingTheme(theme);
+    setPendingDifficulty(difficulty);
+    setPendingWordCount(wordCount);
+    setIsSettingsOpen(true);
+  }, [theme, difficulty, wordCount]);
 
   // Estados de Digitação e Foco
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
@@ -62,11 +105,13 @@ export default function App() {
 
   const themeRef = useRef(theme);
   const wordCountRef = useRef(wordCount);
+  const difficultyRef = useRef(difficulty);
 
   useEffect(() => {
     themeRef.current = theme;
     wordCountRef.current = wordCount;
-  }, [theme, wordCount]);
+    difficultyRef.current = difficulty;
+  }, [theme, wordCount, difficulty]);
 
   // Monitorar largura da janela para calcular exatamente o tamanho da célula sem scroll
   const [windowWidth, setWindowWidth] = useState<number>(() =>
@@ -133,38 +178,49 @@ export default function App() {
   }, [gridData.cols, windowWidth]);
 
   // Geração 100% autônoma e offline no próprio navegador
-  const generateOfflinePuzzle = useCallback((selectedTheme?: string, count?: number) => {
-    const targetTheme = selectedTheme ?? themeRef.current;
-    const targetCount = count ?? wordCountRef.current;
+  const generateOfflinePuzzle = useCallback(
+    (selectedTheme?: string, count?: number, selectedDifficulty?: DifficultyLevel) => {
+      const targetTheme = selectedTheme ?? themeRef.current;
+      const targetDifficulty = selectedDifficulty ?? difficultyRef.current;
+      const targetCount =
+        count ?? (DIFFICULTY_CONFIG[targetDifficulty]?.defaultWords || wordCountRef.current);
 
-    setLoading(true);
-    setIsVerifying(false);
-    setUserLetters({});
-    setRevealedWords(new Set());
-    setElapsedSeconds(0);
+      setLoading(true);
+      setIsVerifying(false);
+      setUserLetters({});
+      setRevealedWords(new Set());
+      setElapsedSeconds(0);
 
-    // Executa assíncrono para garantir repaint imediato do botão com spinner
-    setTimeout(() => {
-      try {
-        const words = offlineProvider.fetchThematicWords(targetTheme, targetCount);
-        const generatedGrid = localEngine.generate(words);
-        setPuzzle(generatedGrid);
-        setCurrentPuzzleTheme(targetTheme);
+      // Executa assíncrono para garantir repaint imediato do botão com spinner
+      setTimeout(() => {
+        try {
+          const words = offlineProvider.fetchThematicWords(
+            targetTheme,
+            targetCount,
+            targetDifficulty
+          );
+          const generatedGrid = localEngine.generate(words, 30, targetDifficulty);
+          setPuzzle(generatedGrid);
+          setCurrentPuzzleTheme(targetTheme);
+          setDifficulty(targetDifficulty);
+          setWordCount(targetCount);
 
-        if (generatedGrid.placedWords.length > 0) {
-          const firstWord = generatedGrid.placedWords[0];
-          setFocusedCell({ row: firstWord.row, col: firstWord.col });
-          setDirection(firstWord.direction);
-        } else {
-          setFocusedCell(null);
+          if (generatedGrid.placedWords.length > 0) {
+            const firstWord = generatedGrid.placedWords[0];
+            setFocusedCell({ row: firstWord.row, col: firstWord.col });
+            setDirection(firstWord.direction);
+          } else {
+            setFocusedCell(null);
+          }
+        } catch (err) {
+          console.error('Erro ao gerar tabuleiro offline:', err);
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        console.error('Erro ao gerar tabuleiro offline:', err);
-      } finally {
-        setLoading(false);
-      }
-    }, 15);
-  }, []);
+      }, 15);
+    },
+    []
+  );
 
   // Inicializa restaurando o jogo salvo no localStorage ou gerando um novo tabuleiro
   useEffect(() => {
@@ -173,6 +229,7 @@ export default function App() {
       setPuzzle(saved.puzzle);
       setTheme(saved.theme || 'todos');
       setCurrentPuzzleTheme(saved.currentPuzzleTheme || saved.theme || 'todos');
+      setDifficulty(saved.difficulty || saved.puzzle.difficulty || 'medio');
       setWordCount(saved.wordCount || 8);
       setUserLetters(saved.userLetters || {});
       setRevealedWords(new Set(saved.revealedWordIds || []));
@@ -190,7 +247,7 @@ export default function App() {
       setElapsedSeconds(saved.elapsedSeconds || 0);
       setHasLoadedSavedGame(true);
     } else {
-      generateOfflinePuzzle('todos', 8);
+      generateOfflinePuzzle('todos', 8, 'medio');
       setHasLoadedSavedGame(true);
     }
   }, [generateOfflinePuzzle]);
@@ -556,6 +613,7 @@ export default function App() {
       puzzle,
       theme,
       currentPuzzleTheme,
+      difficulty,
       wordCount,
       userLetters,
       revealedWordIds: Array.from(revealedWords),
@@ -573,6 +631,7 @@ export default function App() {
     puzzle,
     theme,
     currentPuzzleTheme,
+    difficulty,
     wordCount,
     userLetters,
     revealedWords,
@@ -586,7 +645,7 @@ export default function App() {
 
   // Proteção contra início acidental de novo jogo com progresso não salvo
   const requestNewPuzzle = useCallback(
-    (targetTheme?: string, targetCount?: number) => {
+    (targetTheme?: string, targetCount?: number, targetDifficulty?: DifficultyLevel) => {
       const hasUserInput = Object.keys(userLetters).length > 0 && !isPuzzleCompleted;
       if (hasUserInput) {
         const confirmed = window.confirm(
@@ -594,10 +653,18 @@ export default function App() {
         );
         if (!confirmed) return;
       }
-      generateOfflinePuzzle(targetTheme, targetCount);
+      generateOfflinePuzzle(targetTheme, targetCount, targetDifficulty);
     },
     [userLetters, isPuzzleCompleted, generateOfflinePuzzle]
   );
+
+  const handleApplySettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    setTheme(pendingTheme);
+    setDifficulty(pendingDifficulty);
+    setWordCount(pendingWordCount);
+    requestNewPuzzle(pendingTheme, pendingWordCount, pendingDifficulty);
+  }, [pendingTheme, pendingDifficulty, pendingWordCount, requestNewPuzzle]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -639,100 +706,174 @@ export default function App() {
 
       {/* Main Container */}
       <main className="main-container">
-        {/* Controls Bar */}
-        <section className="glass-panel control-bar">
-          <div className="theme-selector">
+        {/* Compact Controls Toolbar */}
+        <section className="glass-panel control-bar compact-toolbar">
+          <div
+            className="active-game-pill"
+            onClick={openSettings}
+            role="button"
+            tabIndex={0}
+            title="Clique para alterar tema, dificuldade e palavras"
+          >
             <span
+              className="pill-badge"
               style={{
-                fontSize: '0.85rem',
-                color: 'var(--text-dim)',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                width: '100%',
-                marginBottom: '2px',
+                color: DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.color || '#f59e0b',
               }}
             >
-              <BookOpen size={14} /> Tema:
+              {DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.icon}{' '}
+              {DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.label}
+              {puzzle.metrics ? ` (${puzzle.metrics.score} pts)` : ''}
             </span>
-            {availableThemes.map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  if (theme === t) return;
-                  setTheme(t);
-                  requestNewPuzzle(t, wordCount);
-                }}
-                className={`theme-button ${theme === t ? 'active' : ''}`}
-              >
-                {THEME_LABELS[t] || t}
-              </button>
-            ))}
+            <span className="pill-divider">•</span>
+            <span className="pill-theme">
+              <BookOpen size={13} /> {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme}
+            </span>
+            <span className="pill-divider">•</span>
+            <span className="pill-words">{puzzle.placedWords.length} palavras</span>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.75rem',
-              flexWrap: 'wrap',
-              width: '100%',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                color: 'var(--text-muted)',
-                fontSize: '0.85rem',
-              }}
+          <div className="toolbar-actions">
+            <button
+              type="button"
+              className="btn-toolbar-settings"
+              onClick={openSettings}
+              title="Ajustar Dificuldade, Tema e Palavras"
             >
-              <span>Palavras:</span>
-              <select
-                value={wordCount}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setWordCount(val);
-                  requestNewPuzzle(theme, val);
-                }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'var(--text-main)',
-                  borderRadius: '6px',
-                  padding: '0.35rem 0.6rem',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value={6} style={{ background: '#1e293b' }}>
-                  6 palavras
-                </option>
-                <option value={8} style={{ background: '#1e293b' }}>
-                  8 palavras
-                </option>
-                <option value={10} style={{ background: '#1e293b' }}>
-                  10 palavras
-                </option>
-                <option value={12} style={{ background: '#1e293b' }}>
-                  12 palavras
-                </option>
-              </select>
-            </div>
+              <SlidersHorizontal size={14} />
+              <span>Configurar</span>
+            </button>
 
             <button
-              className="btn-generate"
+              type="button"
+              className="btn-generate btn-generate-compact"
               disabled={loading}
-              onClick={() => requestNewPuzzle(theme, wordCount)}
+              onClick={() => requestNewPuzzle(theme, wordCount, difficulty)}
+              title="Gerar nova cruzadinha com as opções ativas"
             >
-              <RefreshCw size={16} className={loading ? 'spin' : ''} />
-              {loading ? 'Gerando...' : 'Novo Tabuleiro'}
+              <RefreshCw size={13} className={loading ? 'spin' : ''} />
+              <span>{loading ? 'Gerando...' : 'Novo'}</span>
             </button>
           </div>
         </section>
+
+        {/* Modal de Configurações do Tabuleiro */}
+        {isSettingsOpen && (
+          <div className="settings-modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
+            <div
+              className="settings-modal-card"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="settings-modal-title"
+            >
+              <div className="settings-modal-header">
+                <h3 id="settings-modal-title" className="settings-modal-title">
+                  <SlidersHorizontal size={18} color="#6366f1" />
+                  <span>Configurações do Tabuleiro</span>
+                </h3>
+                <button
+                  type="button"
+                  className="settings-close-btn"
+                  onClick={() => setIsSettingsOpen(false)}
+                  aria-label="Fechar configurações"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Dificuldade */}
+              <div className="settings-section">
+                <span className="settings-section-title">
+                  <Sparkles size={14} /> Dificuldade do Tabuleiro:
+                </span>
+                <div className="difficulty-options-grid">
+                  {(['facil', 'medio', 'dificil'] as DifficultyLevel[]).map((d) => {
+                    const cfg = DIFFICULTY_CONFIG[d];
+                    const isSelected = pendingDifficulty === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setPendingDifficulty(d);
+                          setPendingWordCount(cfg.defaultWords);
+                        }}
+                        className={`difficulty-card-btn ${isSelected ? `active-${d}` : ''}`}
+                      >
+                        <div className="difficulty-card-header">
+                          <span>{cfg.icon}</span>
+                          <span>{cfg.label}</span>
+                        </div>
+                        <span className="difficulty-card-desc">{cfg.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tema */}
+              <div className="settings-section">
+                <span className="settings-section-title">
+                  <BookOpen size={14} /> Tema do Vocabulário:
+                </span>
+                <div className="settings-themes-grid">
+                  {availableThemes.map((t) => {
+                    const isSelected = pendingTheme === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setPendingTheme(t)}
+                        className={`theme-button ${isSelected ? 'active' : ''}`}
+                      >
+                        {THEME_LABELS[t] || t}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quantidade de Palavras */}
+              <div className="settings-section">
+                <span className="settings-section-title">
+                  <Layers size={14} /> Quantidade de Palavras:
+                </span>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[6, 8, 10, 12].map((count) => {
+                    const isSelected = pendingWordCount === count;
+                    return (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => setPendingWordCount(count)}
+                        className={`theme-button ${isSelected ? 'active' : ''}`}
+                        style={{ flex: 1, minWidth: '70px', textAlign: 'center' }}
+                      >
+                        {count} palavras
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer de Ações */}
+              <div className="settings-modal-footer">
+                <button
+                  type="button"
+                  className="btn-action"
+                  onClick={() => setIsSettingsOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="button" className="btn-generate" onClick={handleApplySettings}>
+                  <Check size={16} />
+                  <span>Aplicar e Gerar Tabuleiro</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabuleiro Central */}
         <section
@@ -771,33 +912,16 @@ export default function App() {
           />
 
           {/* Indicador do tema ativo e status de salvamento */}
+          {/* Status de salvamento */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               width: '100%',
-              marginBottom: '0.75rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
+              marginBottom: '0.4rem',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.8rem',
-                color: 'var(--accent-secondary)',
-                fontWeight: 700,
-              }}
-            >
-              <Tag size={13} />
-              <span>
-                Tema Atual: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme} (
-                {puzzle.placedWords.length} palavras no grid)
-              </span>
-            </div>
             <div
               style={{
                 display: 'inline-flex',
@@ -829,7 +953,7 @@ export default function App() {
               </div>
               <button
                 className="btn-generate"
-                onClick={() => generateOfflinePuzzle(theme, wordCount)}
+                onClick={() => generateOfflinePuzzle(theme, wordCount, difficulty)}
               >
                 Jogar Próxima
               </button>

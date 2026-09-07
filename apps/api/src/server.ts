@@ -63,13 +63,14 @@ fastify.get<{ Params: { id: string } }>('/puzzles/:id', async (request, reply) =
 interface GenerateBody {
   theme?: string;
   wordCount?: number;
+  difficulty?: 'facil' | 'medio' | 'dificil';
 }
 
 fastify.post<{ Body: GenerateBody }>('/puzzles/generate', async (request, reply) => {
-  const { theme = 'tecnologia', wordCount = 8 } = request.body || {};
+  const { theme = 'tecnologia', wordCount = 8, difficulty } = request.body || {};
 
   try {
-    const result = await generatePuzzleUseCase.execute(theme, wordCount);
+    const result = await generatePuzzleUseCase.execute(theme, wordCount, difficulty);
     return reply.status(201).send(result);
   } catch (error) {
     fastify.log.error(error);

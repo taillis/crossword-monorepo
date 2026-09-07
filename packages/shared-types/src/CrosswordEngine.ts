@@ -1,7 +1,15 @@
-import { Direction, PuzzleGrid, WordNode, WordPlacement } from './types.js';
+import {
+  Direction,
+  PuzzleGrid,
+  WordNode,
+  WordPlacement,
+  DifficultyLevel,
+  BoardDifficultyMetrics,
+} from './types.js';
 
 export interface ICrosswordEngine {
-  generate(words: WordNode[], maxGridSize?: number): PuzzleGrid;
+  generate(words: WordNode[], maxGridSize?: number, difficulty?: DifficultyLevel): PuzzleGrid;
+  calculateMetrics(placements: WordPlacement[]): BoardDifficultyMetrics;
 }
 
 interface Cell {
@@ -24,7 +32,11 @@ export class CrosswordEngine implements ICrosswordEngine {
     this.defaultGridSize = defaultGridSize;
   }
 
-  public generate(words: WordNode[], maxGridSize?: number): PuzzleGrid {
+  public generate(
+    words: WordNode[],
+    maxGridSize?: number,
+    difficulty?: DifficultyLevel
+  ): PuzzleGrid {
     const gridSize = maxGridSize ?? this.defaultGridSize;
 
     const normalizedWords = words
@@ -43,7 +55,7 @@ export class CrosswordEngine implements ICrosswordEngine {
 
     const bestPlacements = this.solveWithBacktracking(normalizedWords, gridSize);
 
-    return this.formatPuzzleGrid(bestPlacements);
+    return this.formatPuzzleGrid(bestPlacements, difficulty);
   }
 
   private normalizeText(text: string): string {
@@ -357,7 +369,79 @@ export class CrosswordEngine implements ICrosswordEngine {
     }
   }
 
-  private formatPuzzleGrid(placements: WordPlacement[]): PuzzleGrid {
+  public calculateMetrics(placements: WordPlacement[]): BoardDifficultyMetrics {
+    if (placements.length === 0) {
+      return {
+        score: 0,
+        level: 'facil',
+        interlockingRatio: 0,
+        averageWordLength: 0,
+        totalWords: 0,
+        totalUniqueCells: 0,
+        crossedCells: 0,
+      };
+    }
+
+    const cellCoordinates = new Map<string, number>();
+    let totalChars = 0;
+
+    for (const p of placements) {
+      totalChars += p.length;
+      for (let i = 0; i < p.length; i++) {
+        const r = p.direction === 'horizontal' ? p.row : p.row + i;
+        const c = p.direction === 'horizontal' ? p.col + i : p.col;
+        const key = `${r},${c}`;
+        cellCoordinates.set(key, (cellCoordinates.get(key) || 0) + 1);
+      }
+    }
+
+    const totalUniqueCells = cellCoordinates.size;
+    let crossedCells = 0;
+    cellCoordinates.forEach((count) => {
+      if (count > 1) {
+        crossedCells++;
+      }
+    });
+
+    const interlockingRatio = totalUniqueCells > 0 ? crossedCells / totalUniqueCells : 0;
+    const averageWordLength = totalChars / placements.length;
+    const totalWords = placements.length;
+
+    // Componentes do Score de Dificuldade do Tabuleiro (0 a 100):
+    // 1. Tamanho médio das palavras (3.5 a 9.0 letras): 40% do peso
+    const lengthScore = Math.max(0, Math.min(100, ((averageWordLength - 3.5) / 5.5) * 100));
+
+    // 2. Esparsidade (quanto menor a razão de cruzamento, menor o auxílio entre palavras): 35% do peso
+    const sparsityScore = Math.max(0, Math.min(100, ((0.42 - interlockingRatio) / 0.28) * 100));
+
+    // 3. Quantidade de palavras no tabuleiro (escala de 6 a 14+ palavras): 25% do peso
+    const sizeScore = Math.max(0, Math.min(100, ((totalWords - 6) / 8) * 100));
+
+    const rawScore = Math.round(lengthScore * 0.4 + sparsityScore * 0.35 + sizeScore * 0.25);
+    const score = Math.max(1, Math.min(100, rawScore));
+
+    let level: DifficultyLevel = 'medio';
+    if (score < 40) {
+      level = 'facil';
+    } else if (score > 65) {
+      level = 'dificil';
+    }
+
+    return {
+      score,
+      level,
+      interlockingRatio: Math.round(interlockingRatio * 1000) / 1000,
+      averageWordLength: Math.round(averageWordLength * 10) / 10,
+      totalWords,
+      totalUniqueCells,
+      crossedCells,
+    };
+  }
+
+  private formatPuzzleGrid(
+    placements: WordPlacement[],
+    targetDifficulty?: DifficultyLevel
+  ): PuzzleGrid {
     if (placements.length === 0) {
       return { bounds: { rows: 0, cols: 0 }, placedWords: [] };
     }
@@ -383,12 +467,16 @@ export class CrosswordEngine implements ICrosswordEngine {
       col: p.col - minCol,
     }));
 
+    const metrics = this.calculateMetrics(shiftedPlacements);
+
     return {
       bounds: {
         rows: maxRow - minRow + 1,
         cols: maxCol - minCol + 1,
       },
       placedWords: shiftedPlacements,
+      difficulty: targetDifficulty || metrics.level,
+      metrics,
     };
   }
 }

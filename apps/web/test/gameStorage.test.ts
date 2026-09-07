@@ -62,6 +62,7 @@ describe('gameStorage service', () => {
     },
     theme: 'tecnologia',
     currentPuzzleTheme: 'tecnologia',
+    difficulty: 'medio',
     wordCount: 8,
     userLetters: { '0,0': 'T', '0,1': 'E' },
     revealedWordIds: ['w1'],
@@ -86,6 +87,7 @@ describe('gameStorage service', () => {
     const loaded = loadActiveGame();
     expect(loaded).not.toBeNull();
     expect(loaded?.theme).toBe('tecnologia');
+    expect(loaded?.difficulty).toBe('medio');
     expect(loaded?.elapsedSeconds).toBe(42);
     expect(loaded?.userLetters).toEqual({ '0,0': 'T', '0,1': 'E' });
     expect(loaded?.revealedWordIds).toEqual(['w1']);

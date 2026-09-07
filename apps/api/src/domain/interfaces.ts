@@ -1,4 +1,10 @@
-import { PuzzleGrid, WordNode } from 'shared-types';
+import {
+  PuzzleGrid,
+  WordNode,
+  DifficultyLevel,
+  BoardDifficultyMetrics,
+  WordPlacement,
+} from 'shared-types';
 
 export interface IPuzzleRepository {
   save(puzzleId: string, grid: PuzzleGrid): Promise<void>;
@@ -6,9 +12,14 @@ export interface IPuzzleRepository {
 }
 
 export interface IWordProvider {
-  fetchThematicWords(theme: string, count: number): Promise<WordNode[]>;
+  fetchThematicWords(
+    theme: string,
+    count: number,
+    difficulty?: DifficultyLevel
+  ): Promise<WordNode[]>;
 }
 
 export interface ICrosswordEngine {
-  generate(words: WordNode[], maxGridSize?: number): PuzzleGrid;
+  generate(words: WordNode[], maxGridSize?: number, difficulty?: DifficultyLevel): PuzzleGrid;
+  calculateMetrics?(placements: WordPlacement[]): BoardDifficultyMetrics;
 }
