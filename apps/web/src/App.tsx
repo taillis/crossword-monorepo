@@ -19,10 +19,11 @@ import {
   Check,
   Trash2,
   CheckCircle2,
-  Tag,
   AlertCircle,
   Clock,
   Save,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { loadActiveGame, saveActiveGame } from './services/gameStorage';
 
@@ -68,6 +69,19 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoadedSavedGame, setHasLoadedSavedGame] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+
+  // Estados da Gaveta/Modal de Configurações
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [pendingTheme, setPendingTheme] = useState<string>('todos');
+  const [pendingDifficulty, setPendingDifficulty] = useState<DifficultyLevel>('medio');
+  const [pendingWordCount, setPendingWordCount] = useState<number>(8);
+
+  const openSettings = useCallback(() => {
+    setPendingTheme(theme);
+    setPendingDifficulty(difficulty);
+    setPendingWordCount(wordCount);
+    setIsSettingsOpen(true);
+  }, [theme, difficulty, wordCount]);
 
   // Estados de Digitação e Foco
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
@@ -644,6 +658,14 @@ export default function App() {
     [userLetters, isPuzzleCompleted, generateOfflinePuzzle]
   );
 
+  const handleApplySettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    setTheme(pendingTheme);
+    setDifficulty(pendingDifficulty);
+    setWordCount(pendingWordCount);
+    requestNewPuzzle(pendingTheme, pendingWordCount, pendingDifficulty);
+  }, [pendingTheme, pendingDifficulty, pendingWordCount, requestNewPuzzle]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Top Header */}
@@ -684,153 +706,174 @@ export default function App() {
 
       {/* Main Container */}
       <main className="main-container">
-        {/* Controls Bar */}
-        <section className="glass-panel control-bar">
-          {/* Difficulty Selector */}
+        {/* Compact Controls Toolbar */}
+        <section className="glass-panel control-bar compact-toolbar">
           <div
-            className="difficulty-selector"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              flexWrap: 'wrap',
-              width: '100%',
-              marginBottom: '0.6rem',
-            }}
+            className="active-game-pill"
+            onClick={openSettings}
+            role="button"
+            tabIndex={0}
+            title="Clique para alterar tema, dificuldade e palavras"
           >
             <span
+              className="pill-badge"
               style={{
-                fontSize: '0.85rem',
-                color: 'var(--text-dim)',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                width: '100%',
-                marginBottom: '2px',
+                color: DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.color || '#f59e0b',
               }}
             >
-              <Sparkles size={14} /> Dificuldade do Tabuleiro:
+              {DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.icon}{' '}
+              {DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.label}
+              {puzzle.metrics ? ` (${puzzle.metrics.score} pts)` : ''}
             </span>
-            {(['facil', 'medio', 'dificil'] as DifficultyLevel[]).map((d) => {
-              const cfg = DIFFICULTY_CONFIG[d];
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => {
-                    if (difficulty === d) return;
-                    setDifficulty(d);
-                    const defaultCount = cfg.defaultWords;
-                    setWordCount(defaultCount);
-                    requestNewPuzzle(theme, defaultCount, d);
-                  }}
-                  className={`theme-button difficulty-badge-${d} ${difficulty === d ? 'active' : ''}`}
-                  title={cfg.desc}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <span>{cfg.icon}</span> {cfg.label}
-                </button>
-              );
-            })}
+            <span className="pill-divider">•</span>
+            <span className="pill-theme">
+              <BookOpen size={13} /> {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme}
+            </span>
+            <span className="pill-divider">•</span>
+            <span className="pill-words">{puzzle.placedWords.length} palavras</span>
           </div>
 
-          <div className="theme-selector">
-            <span
-              style={{
-                fontSize: '0.85rem',
-                color: 'var(--text-dim)',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                width: '100%',
-                marginBottom: '2px',
-              }}
+          <div className="toolbar-actions">
+            <button
+              type="button"
+              className="btn-toolbar-settings"
+              onClick={openSettings}
+              title="Ajustar Dificuldade, Tema e Palavras"
             >
-              <BookOpen size={14} /> Tema:
-            </span>
-            {availableThemes.map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  if (theme === t) return;
-                  setTheme(t);
-                  requestNewPuzzle(t, wordCount, difficulty);
-                }}
-                className={`theme-button ${theme === t ? 'active' : ''}`}
-              >
-                {THEME_LABELS[t] || t}
-              </button>
-            ))}
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.75rem',
-              flexWrap: 'wrap',
-              width: '100%',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                color: 'var(--text-muted)',
-                fontSize: '0.85rem',
-              }}
-            >
-              <span>Palavras:</span>
-              <select
-                value={wordCount}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setWordCount(val);
-                  requestNewPuzzle(theme, val, difficulty);
-                }}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'var(--text-main)',
-                  borderRadius: '6px',
-                  padding: '0.35rem 0.6rem',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value={6} style={{ background: '#1e293b' }}>
-                  6 palavras
-                </option>
-                <option value={8} style={{ background: '#1e293b' }}>
-                  8 palavras
-                </option>
-                <option value={10} style={{ background: '#1e293b' }}>
-                  10 palavras
-                </option>
-                <option value={12} style={{ background: '#1e293b' }}>
-                  12 palavras
-                </option>
-              </select>
-            </div>
+              <SlidersHorizontal size={14} />
+              <span>Configurar</span>
+            </button>
 
             <button
-              className="btn-generate"
+              type="button"
+              className="btn-generate btn-generate-compact"
               disabled={loading}
               onClick={() => requestNewPuzzle(theme, wordCount, difficulty)}
+              title="Gerar nova cruzadinha com as opções ativas"
             >
-              <RefreshCw size={16} className={loading ? 'spin' : ''} />
-              {loading ? 'Gerando...' : 'Novo Tabuleiro'}
+              <RefreshCw size={13} className={loading ? 'spin' : ''} />
+              <span>{loading ? 'Gerando...' : 'Novo'}</span>
             </button>
           </div>
         </section>
+
+        {/* Modal de Configurações do Tabuleiro */}
+        {isSettingsOpen && (
+          <div className="settings-modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
+            <div
+              className="settings-modal-card"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="settings-modal-title"
+            >
+              <div className="settings-modal-header">
+                <h3 id="settings-modal-title" className="settings-modal-title">
+                  <SlidersHorizontal size={18} color="#6366f1" />
+                  <span>Configurações do Tabuleiro</span>
+                </h3>
+                <button
+                  type="button"
+                  className="settings-close-btn"
+                  onClick={() => setIsSettingsOpen(false)}
+                  aria-label="Fechar configurações"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Dificuldade */}
+              <div className="settings-section">
+                <span className="settings-section-title">
+                  <Sparkles size={14} /> Dificuldade do Tabuleiro:
+                </span>
+                <div className="difficulty-options-grid">
+                  {(['facil', 'medio', 'dificil'] as DifficultyLevel[]).map((d) => {
+                    const cfg = DIFFICULTY_CONFIG[d];
+                    const isSelected = pendingDifficulty === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setPendingDifficulty(d);
+                          setPendingWordCount(cfg.defaultWords);
+                        }}
+                        className={`difficulty-card-btn ${isSelected ? `active-${d}` : ''}`}
+                      >
+                        <div className="difficulty-card-header">
+                          <span>{cfg.icon}</span>
+                          <span>{cfg.label}</span>
+                        </div>
+                        <span className="difficulty-card-desc">{cfg.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tema */}
+              <div className="settings-section">
+                <span className="settings-section-title">
+                  <BookOpen size={14} /> Tema do Vocabulário:
+                </span>
+                <div className="settings-themes-grid">
+                  {availableThemes.map((t) => {
+                    const isSelected = pendingTheme === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setPendingTheme(t)}
+                        className={`theme-button ${isSelected ? 'active' : ''}`}
+                      >
+                        {THEME_LABELS[t] || t}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quantidade de Palavras */}
+              <div className="settings-section">
+                <span className="settings-section-title">
+                  <Layers size={14} /> Quantidade de Palavras:
+                </span>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[6, 8, 10, 12].map((count) => {
+                    const isSelected = pendingWordCount === count;
+                    return (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => setPendingWordCount(count)}
+                        className={`theme-button ${isSelected ? 'active' : ''}`}
+                        style={{ flex: 1, minWidth: '70px', textAlign: 'center' }}
+                      >
+                        {count} palavras
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer de Ações */}
+              <div className="settings-modal-footer">
+                <button
+                  type="button"
+                  className="btn-action"
+                  onClick={() => setIsSettingsOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="button" className="btn-generate" onClick={handleApplySettings}>
+                  <Check size={16} />
+                  <span>Aplicar e Gerar Tabuleiro</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabuleiro Central */}
         <section
@@ -869,56 +912,16 @@ export default function App() {
           />
 
           {/* Indicador do tema ativo e status de salvamento */}
+          {/* Status de salvamento */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               width: '100%',
-              marginBottom: '0.75rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
+              marginBottom: '0.4rem',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.8rem',
-                color: 'var(--accent-secondary)',
-                fontWeight: 700,
-                flexWrap: 'wrap',
-              }}
-            >
-              <Tag size={13} />
-              <span>Tema: {THEME_LABELS[currentPuzzleTheme] || currentPuzzleTheme}</span>
-              <span
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  color: DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.color || '#f59e0b',
-                  border: `1px solid ${DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.color || '#f59e0b'}44`,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-                title={
-                  puzzle.metrics
-                    ? `Score: ${puzzle.metrics.score}/100 • Cruzamentos: ${Math.round(puzzle.metrics.interlockingRatio * 100)}% • Tam. Médio: ${puzzle.metrics.averageWordLength} letras`
-                    : undefined
-                }
-              >
-                <span>{DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.icon}</span>
-                <span>{DIFFICULTY_CONFIG[puzzle.difficulty || difficulty]?.label}</span>
-                {puzzle.metrics && <span>({puzzle.metrics.score} pts)</span>}
-              </span>
-              <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-                • {puzzle.placedWords.length} palavras
-              </span>
-            </div>
             <div
               style={{
                 display: 'inline-flex',
